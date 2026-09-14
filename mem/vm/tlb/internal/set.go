@@ -14,6 +14,7 @@ type Set interface {
 	Update(wayID int, page vm.Page)
 	Evict() (wayID int, ok bool)
 	Visit(wayID int)
+	PageAt(wayID int) vm.Page
 }
 
 // NewSet creates a new TLB set.
@@ -88,6 +89,10 @@ func (s *setImpl) Evict() (wayID int, ok bool) {
 	wayID = leastVisited.wayID
 	s.visitList = s.visitList[1:]
 	return wayID, true
+}
+
+func (s *setImpl) PageAt(wayID int) vm.Page {
+	return s.blocks[wayID].page
 }
 
 func (s *setImpl) Visit(wayID int) {

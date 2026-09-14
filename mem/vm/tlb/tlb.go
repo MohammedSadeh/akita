@@ -31,6 +31,10 @@ type TLB struct {
 	respondingMSHREntry *mshrEntry
 
 	isPaused bool
+
+	// Instrumentation for the shared-TLB side-channel study.
+	EvictValid   uint64
+	EvictInvalid uint64
 }
 
 // Reset sets all the entries int he TLB to be invalid
@@ -241,6 +245,12 @@ func (tlb *TLB) parseBottom(now sim.VTimeInSec) bool {
 	wayID, ok := tlb.Sets[setID].Evict()
 	if !ok {
 		panic("failed to evict")
+	}
+
+	if set.PageAt(wayID).Valid {
+		tlb.EvictValid++
+	} else {
+		tlb.EvictInvalid++
 	}
 	set.Update(wayID, page)
 	set.Visit(wayID)
