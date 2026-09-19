@@ -35,6 +35,7 @@ type TLB struct {
 	// Instrumentation for the shared-TLB side-channel study.
 	EvictValid   uint64
 	EvictInvalid uint64
+	EvictCrossPID uint64
 }
 
 // Reset sets all the entries int he TLB to be invalid
@@ -247,8 +248,12 @@ func (tlb *TLB) parseBottom(now sim.VTimeInSec) bool {
 		panic("failed to evict")
 	}
 
-	if set.PageAt(wayID).Valid {
+	victim := set.PageAt(wayID)
+	if victim.Valid {
 		tlb.EvictValid++
+		if victim.PID != page.PID {
+			tlb.EvictCrossPID++
+		}
 	} else {
 		tlb.EvictInvalid++
 	}
