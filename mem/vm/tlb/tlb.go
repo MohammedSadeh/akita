@@ -162,8 +162,20 @@ func (tlb *TLB) handleTranslationMiss(
 	return false
 }
 
+
+// vAddrToSetID maps a virtual address to a set index using the linear GF(2)
+// mapping reported for the reference platform: output bit r is the exclusive-or
+// of every eighth virtual-address bit starting at bit 20+r, over VA[46:20].
 func (tlb *TLB) vAddrToSetID(vAddr uint64) (setID int) {
-	return int(vAddr / tlb.pageSize % uint64(tlb.numSets))
+	idx := 0
+	for r := 0; r < 8; r++ {
+		bit := 0
+		for b := 20 + r; b <= 46; b += 8 {
+			bit ^= int((vAddr >> uint(b)) & 1)
+		}
+		idx |= bit << uint(r)
+	}
+	return idx % tlb.numSets
 }
 
 func (tlb *TLB) sendRspToTop(

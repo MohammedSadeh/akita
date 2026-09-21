@@ -87,3 +87,17 @@ func (mr *MockSetMockRecorder) Visit(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Visit", reflect.TypeOf((*MockSet)(nil).Visit), arg0)
 }
+
+// PageAt mocks base method.
+func (m *MockSet) PageAt(arg0 int) vm.Page {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "PageAt", arg0)
+	ret0, _ := ret[0].(vm.Page)
+	return ret0
+}
+
+// PageAt indicates an expected call of PageAt.
+func (mr *MockSetMockRecorder) PageAt(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PageAt", reflect.TypeOf((*MockSet)(nil).PageAt), arg0)
+}
