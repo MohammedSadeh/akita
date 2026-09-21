@@ -226,6 +226,7 @@ var _ = Describe("TLB", func() {
 			mshrEntry.reqToBottom = &vm.TranslationReq{}
 
 			set.EXPECT().Evict().Return(wayID, true)
+			set.EXPECT().PageAt(1).Return(vm.Page{})
 			set.EXPECT().Update(wayID, page)
 			set.EXPECT().Visit(wayID)
 
