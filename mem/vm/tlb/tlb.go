@@ -3,6 +3,7 @@ package tlb
 import (
 	"log"
 	"reflect"
+	"math/bits"
 
 	"github.com/sarchlab/akita/v3/mem/vm"
 	"github.com/sarchlab/akita/v3/mem/vm/tlb/internal"
@@ -36,14 +37,20 @@ type TLB struct {
 	EvictValid   uint64
 	EvictInvalid uint64
 	EvictCrossPID uint64
+	log2RegionSize uint64
+	SubEntryFill   uint64
 }
 
 // Reset sets all the entries int he TLB to be invalid
 func (tlb *TLB) reset() {
 	tlb.Sets = make([]internal.Set, tlb.numSets)
 	for i := 0; i < tlb.numSets; i++ {
-		set := internal.NewSet(tlb.numWays)
-		tlb.Sets[i] = set
+		if tlb.log2RegionSize > 0 {
+			log2Page := uint64(bits.TrailingZeros64(tlb.pageSize))
+			tlb.Sets[i] = internal.NewRegionSet(tlb.numWays, tlb.log2RegionSize, log2Page)
+		} else {
+			tlb.Sets[i] = internal.NewSet(tlb.numWays)
+		}
 	}
 }
 
@@ -253,21 +260,32 @@ func (tlb *TLB) parseBottom(now sim.VTimeInSec) bool {
 		return true
 	}
 
-	setID := tlb.vAddrToSetID(page.VAddr)
+		setID := tlb.vAddrToSetID(page.VAddr)
 	set := tlb.Sets[setID]
-	wayID, ok := tlb.Sets[setID].Evict()
-	if !ok {
-		panic("failed to evict")
+
+	wayID, resident := -1, false
+	if rs, ok := set.(internal.RegionSet); ok {
+		wayID, resident = rs.RegionWay(page.PID, page.VAddr)
 	}
 
-	victim := set.PageAt(wayID)
-	if victim.Valid {
-		tlb.EvictValid++
-		if victim.PID != page.PID {
-			tlb.EvictCrossPID++
-		}
+	if resident {
+		// The region already holds a way: fill the sub-entry in place.
+		tlb.SubEntryFill++
 	} else {
-		tlb.EvictInvalid++
+		var ok bool
+		wayID, ok = set.Evict()
+		if !ok {
+			panic("failed to evict")
+		}
+		victim := set.PageAt(wayID)
+		if victim.Valid {
+			tlb.EvictValid++
+			if victim.PID != page.PID {
+				tlb.EvictCrossPID++
+			}
+		} else {
+			tlb.EvictInvalid++
+		}
 	}
 	set.Update(wayID, page)
 	set.Visit(wayID)

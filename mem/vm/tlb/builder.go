@@ -12,6 +12,7 @@ type Builder struct {
 	pageSize       uint64
 	lowModule      sim.Port
 	numMSHREntry   int
+	log2RegionSize uint64
 }
 
 // MakeBuilder returns a Builder
@@ -42,6 +43,14 @@ func (b Builder) WithFreq(freq sim.Freq) Builder {
 // TLBs.
 func (b Builder) WithNumSets(n int) Builder {
 	b.numSets = n
+	return b
+}
+
+// WithLog2RegionSize makes each way cover a naturally aligned region of 2^n
+// bytes holding one sub-entry per page, modelling sub-entry packing. Zero, the
+// default, keeps one page per way.
+func (b Builder) WithLog2RegionSize(n uint64) Builder {
+	b.log2RegionSize = n
 	return b
 }
 
@@ -89,6 +98,7 @@ func (b Builder) Build(name string) *TLB {
 	tlb.numReqPerCycle = b.numReqPerCycle
 	tlb.pageSize = b.pageSize
 	tlb.LowModule = b.lowModule
+	tlb.log2RegionSize = b.log2RegionSize
 	tlb.mshr = newMSHR(b.numMSHREntry)
 
 	b.createPorts(name, tlb)
