@@ -39,6 +39,7 @@ type TLB struct {
 	EvictCrossPID uint64
 	log2RegionSize uint64
 	SubEntryFill   uint64
+	setKey uint64
 }
 
 // Reset sets all the entries int he TLB to be invalid
@@ -174,15 +175,27 @@ func (tlb *TLB) handleTranslationMiss(
 // mapping reported for the reference platform: output bit r is the exclusive-or
 // of every eighth virtual-address bit starting at bit 20+r, over VA[46:20].
 func (tlb *TLB) vAddrToSetID(vAddr uint64) (setID int) {
+	// Mix the key into the address before the linear map. With setKey == 0
+	// this reduces exactly to the unkeyed GF(2) hash, so existing behaviour
+	// and the hash unit tests are unchanged.
+	v := vAddr ^ (tlb.setKey << 20)
+
 	idx := 0
 	for r := 0; r < 8; r++ {
 		bit := 0
 		for b := 20 + r; b <= 46; b += 8 {
-			bit ^= int((vAddr >> uint(b)) & 1)
+			bit ^= int((v >> uint(b)) & 1)
 		}
 		idx |= bit << uint(r)
 	}
 	return idx % tlb.numSets
+}
+
+// Rekey installs a new per-VM set-mapping key. Any translations already
+// resident are left in place but will now be found under different set indices,
+// which is what denies an attacker a stable eviction set across epochs.
+func (tlb *TLB) Rekey(key uint64) {
+	tlb.setKey = key
 }
 
 func (tlb *TLB) sendRspToTop(
